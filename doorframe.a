@@ -45,11 +45,11 @@ NextFrame
         bne DrawGameScreen
         
 DrawTitleScreen
-	lda INPT4		;scan for player 0 input to switch to start game
+	lda INPT4		;scan for player 0 input to switch to gameplay logic
 	rol 
         bcs DrawTitleScreenLoop
         lda #GameScreen
-        sta Mode		;set gamemode
+        sta Mode		;set gamemode to game
         
 DrawTitleScreenLoop        
         txa
