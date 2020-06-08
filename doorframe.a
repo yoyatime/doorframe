@@ -14,9 +14,13 @@ GameScreen 	equ #$01
         	seg.u Variables
 		org $80
 
-
+; Title Screen Overlay
 Mode		ds 1		;0 = Title Screen
 				;1 = Game
+                                
+; Game Screen Overlay                
+                org $80
+                                
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
 
@@ -26,7 +30,7 @@ Mode		ds 1		;0 = Title Screen
 Start
 	CLEAN_START
         lda #TitleScreen	; Start at Title Screen
-        sta Mode	;
+        sta Mode		;
         
 NextFrame
         lsr SWCHB	; test Game Reset switch
@@ -43,19 +47,20 @@ NextFrame
         
         cmp Mode	 
         bne DrawGameScreen
-        
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Title Screen
 DrawTitleScreen
 	lda INPT4		;scan for player 0 input to switch to gameplay logic
-	rol 
+	rol 			;player 0 joystick button is high bit of INPT4 
         bcs DrawTitleScreenLoop
         lda #GameScreen
         sta Mode		;set gamemode to game
         
 DrawTitleScreenLoop        
         txa
-        
-        adc #$3
-        sta COLUPF	;Color Playfield with X + 3
+        adc #$03		;Color Playfield with X + 3
+        sta COLUPF
         
         lda PF0Data,y
         sta PF0
@@ -76,10 +81,10 @@ DrawTitleScreenLoop
         sta PF2
         
         txa
-        and #%00000111
-        cmp #%00000100
-        bne TitleLineFinish
-        iny
+        and #%00000111		;increment Y every 4th scanline
+        cmp #%00000100		;
+        bne TitleLineFinish	;
+        iny			;
         
 TitleLineFinish    
         inx
@@ -87,14 +92,21 @@ TitleLineFinish
         sta WSYNC
         bne DrawTitleScreenLoop
         jmp Overscan
-        
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Game Screen
+
 DrawGameScreen
-	lda #$62
+	lda #$30
         sta COLUBK
         sta WSYNC
         inx
         cpx #192
         bne DrawGameScreen
+        
+
 
 ; 29 lines of overscan
 Overscan
@@ -109,7 +121,7 @@ Overscan
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;Graphical Data
+; Graphical Data
 
 ;---Sprite Data from PlayerPal 2600---
 
@@ -385,7 +397,7 @@ PF5Data
 ;---End Title Screen PF Data---
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;Epilogue
+; Epilogue
 	org $fffc
         .word Start	; reset vector
         .word Start	; BRK vector
