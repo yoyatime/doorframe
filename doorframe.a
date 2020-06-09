@@ -184,6 +184,26 @@ Overscan
         jmp NextFrame
         
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Set horizontal position of object
+SetHorizPos
+        sta HMCLR
+        sta WSYNC       ; start a new line
+        sec             ; set carry flag
+DivideLoop
+        sbc #15         ; subtract 15
+        bcs DivideLoop  ; branch until negative
+        eor #7          ; calculate fine offset
+        asl
+        asl
+        asl
+        asl
+        sta HMP0,x      ; set fine offset
+        sta RESP0,x     ; fix coarse position
+        sta WSYNC
+        sta HMOVE
+        rts             ; return to caller 
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Graphical Data
