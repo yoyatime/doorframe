@@ -8,6 +8,9 @@
 ; Constants
 TitleScreen 	equ #$00
 GameScreen 	equ #$01
+EarthColum	equ #$D2
+SkyColum	equ #$AA
+KongolHeight  	equ #24
 
 ; Variables segment
 
@@ -20,7 +23,7 @@ Mode		ds 1		;0 = Title Screen
                                 
 ; Game Screen Overlay                
                 org $80
-                                
+KongolTablePtr  ds 2                                
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
 
@@ -29,7 +32,14 @@ Mode		ds 1		;0 = Title Screen
 
 Start
 	CLEAN_START
-        lda #TitleScreen	; Start at Title Screen
+        
+        
+        lda #<KongolG		;Assign P0 sprite pointer 
+        sta KongolTablePtr
+        lda #>KongolG
+        sta KongolTablePtr+1	
+        
+        lda #TitleScreen	;Start at Title Screen
         sta Mode		;
         
 NextFrame
@@ -42,42 +52,42 @@ NextFrame
         TIMER_WAIT
         
 ; 192 lines of frame
-	ldx #$0		;X = scanline number
-        ldy #$0		;y = vertical pixel height counter
         
         cmp Mode	 
-        bne DrawGameScreen
+        bne DrawGameScreenStart
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Title Screen
 DrawTitleScreen
-	lda INPT4		;scan for player 0 input to switch to gameplay logic
-	rol 			;player 0 joystick button is high bit of INPT4 
+	ldx #192		;X = scanline number
+        ldy #$0			;y = vertical pixel height counter
+        lda INPT4		;scan for player 0 input to switch to gameplay logic
+	rol 			;player 0 joystick button is high bit of INPT4
         bcs DrawTitleScreenLoop
-        lda #GameScreen
-        sta Mode		;set gamemode to game
+        lda #GameScreen		;set gamemode to game screen
+        sta Mode		;
         
 DrawTitleScreenLoop        
         txa
-        adc #$03		;Color Playfield with X + 3
+        adc #$FB		;Color Playfield with X + 3
         sta COLUPF
         
-        lda PF0Data,y
-        sta PF0
-        
-        lda PF1Data,y
+        lda PF0Title,y		;Write title screen graphics
+        sta PF0			;
+        			
+        lda PF1Title,y
         sta PF1
         
-        lda PF2Data,y
+        lda PF2Title,y
         sta PF2
         
-        lda PF3Data,y
+        lda PF3Title,y
         sta PF0
         
-        lda PF4Data,y
+        lda PF4Title,y
         sta PF1
         
-        lda PF5Data,y
+        lda PF5Title,y
         sta PF2
         
         txa
@@ -87,9 +97,10 @@ DrawTitleScreenLoop
         iny			;
         
 TitleLineFinish    
-        inx
-        cpx #192
+        
+        
         sta WSYNC
+	dex
         bne DrawTitleScreenLoop
         jmp Overscan
 
@@ -98,12 +109,63 @@ TitleLineFinish
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Game Screen
 
-DrawGameScreen
-	lda #$30
+
+
+DrawGameScreenStart
+	ldy #192		;Y = scanline number
+	ldx #6			;
+        lda #$AA 		;set BK sky to blue
         sta COLUBK
+        lda #$00
+        sta PF0
+        sta PF1
+        sta PF2
+        
+DrawSkyline
+	lda #EarthColum		;set PF mountains to green
+        sta COLUPF
+        
+        sta WSYNC		;2 scanlines of sky without mountains
+        sta WSYNC		;
+        
+DrawSkylineLoop
+        lda PF0Sky,X
+        sta PF0
+        
+        lda PF1Sky,X
+        sta PF1
+        
+        lda PF2Sky,X
+        sta PF2
+        
+        
+        sta WSYNC		;2 scanline resolution for mountains
         sta WSYNC
-        inx
-        cpx #192
+        
+        dex
+        bne DrawSkylineLoop
+        
+        lda #$0		
+        sta PF0
+        sta PF1
+        sta PF2
+        lda #EarthColum		;set gamescreen BK to green
+        sta COLUBK
+        ldy #176		;number of scanlines remaining
+        
+
+DrawGameScreen
+	
+        
+        ;lda (KongolTablePtr),y
+   	;sta GRP0
+        
+        sec
+        tya
+        
+
+        dey
+        sta WSYNC
         bne DrawGameScreen
         
 
@@ -113,6 +175,9 @@ Overscan
 	lda #$00
         sta COLUBK	;set over/underscan BG to black
         sta COLUPF	;set over/underscan PF to black
+        sta PF0
+        sta PF1
+        sta PF2
 	TIMER_SETUP 29
         TIMER_WAIT
 ; total = 262 lines, go to next frame
@@ -231,8 +296,40 @@ AxeC
         
 ;---End Sprite Data---
 
+
+;---Begin Game Screen PF Data---
+
+PF0Sky
+	.byte %00000000
+	.byte %11110000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+
+PF1Sky
+	.byte %00000000
+	.byte %11111111
+	.byte %11111111
+	.byte %01111111
+	.byte %00111111
+	.byte %00011110
+	.byte %00001100
+
+PF2Sky
+	.byte %00000000
+	.byte %11111111
+	.byte %01110011
+	.byte %00100001
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+
+;---End Game Screen PF Data---
+
 ;---Begin Title Screen PF Data---
-PF0Data
+PF0Title
 	.byte %00000000
 	.byte %00000000
 	.byte %00000000
@@ -259,7 +356,7 @@ PF0Data
 	.byte %00000000
 	.byte %00000000
 
-PF1Data
+PF1Title
 	.byte %00000000
 	.byte %00000000
 	.byte %00000000
@@ -286,7 +383,7 @@ PF1Data
 	.byte %00000000
 	.byte %00000000
 
-PF2Data
+PF2Title
 	.byte %00000000
 	.byte %00000000
 	.byte %00000000
@@ -313,7 +410,7 @@ PF2Data
 	.byte %00000000
 	.byte %00000000
 
-PF3Data
+PF3Title
 	.byte %00000000
 	.byte %00000000
 	.byte %00000000
@@ -340,7 +437,7 @@ PF3Data
 	.byte %11000000
 	.byte %00000000
 
-PF4Data
+PF4Title
 	.byte %00000000
 	.byte %00000000
 	.byte %00000000
@@ -367,7 +464,7 @@ PF4Data
 	.byte %11111111
 	.byte %00000000
 
-PF5Data
+PF5Title
 	.byte %00000000
 	.byte %00000000
 	.byte %00000000
