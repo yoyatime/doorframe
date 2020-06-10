@@ -8,24 +8,33 @@
 ; Constants
 TitleScreen 	equ #$00
 GameScreen 	equ #$01
-EarthColum	equ #$D2
-SkyColum	equ #$AA
+EarthColu	equ #$D2
+SkyColu		equ #$AA
 KongolHeight  	equ #24
+KongolInitPos	equ #58
+SkyHeight 	equ #16
+ScoreHeight	equ #16
+ScoreBKColu	equ #$A0
+
 
 ; Variables segment
 
         	seg.u Variables
 		org $80
 
-; Title Screen Overlay
+; Title Screen Memory Overlay
 Mode		ds 1		;0 = Title Screen
 				;1 = Game
                                 
-; Game Screen Overlay                
-                org $80
+; Game Screen Memory Overlay                
+Temp		ds 1
 KongolTablePtr  ds 2   
 KongolYPos	ds 1
 KongolXPos 	ds 1
+Score		ds 1
+ScoreDigitOnes  ds 2
+ScoreDigitTens	ds 2
+ScoreGFX	ds 1
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
 
@@ -41,8 +50,12 @@ Start
         lda #>KongolG
         sta KongolTablePtr+1
         
-        lda #%101
+        lda #%101		;Set doublewide P0
         sta NUSIZ0
+        
+        lda #$3A		;Define initial P0 position
+        sta KongolXPos
+        sta KongolYPos
         
         lda #TitleScreen	;Start at Title Screen
         sta Mode		;
@@ -53,13 +66,13 @@ NextFrame
 ; 1 + 3 lines of VSYNC
 	VERTICAL_SYNC
 ; 36 lines of underscan
-	TIMER_SETUP 36
+	TIMER_SETUP 35
         TIMER_WAIT
         
         
 ; 192 lines of frame
         
-        cmp Mode	 
+        cmp Mode	 		;Jump to set gamemode
         bne DrawGameScreenStart
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -76,7 +89,7 @@ DrawTitleScreen
         
 DrawTitleScreenLoop        
         txa
-        adc #$FB		;Color Playfield with X + 3
+        adc #$FB		;Color Playfield with COLU X + 3
         sta COLUPF
         
         lda PF0Title,y		;Write title screen graphics
@@ -119,34 +132,32 @@ TitleLineFinish
 
 
 DrawGameScreenStart
-	
-
-
 	ldy #192		;Y -> scanline number
-	ldx #6			;X -> iterations of sky 
+	
+        ;lda KongolXPos
+        lda KongolXPos		;set 
+        jsr SetHorizPos
         
-        
-        lda #$60
-        ;sta KongolXPos
-        sta KongolYPos
-        
+        stx PF0
+        stx PF1
+        stx PF2
+     
+      
+        ldx #6			;X -> iterations of sky 
         lda #$AA 		;set BK sky to blue
+        
         sta COLUBK
         
-        lda #$00		;Clear Playfield
-        sta PF0
-        sta PF1
-        sta PF2
-        
-        
+        ;lda #$00		;Clear Playfield
         
         
         
 DrawSkyline
-	lda #EarthColum		;set PF mountains to green
+	lda #EarthColu		;set PF mountains to green
         sta COLUPF
         
         sta WSYNC		;2 scanlines of sky without mountains
+        
         sta WSYNC		;
         
         
@@ -171,16 +182,17 @@ DrawSkylineLoop
         sta PF0
         sta PF1
         sta PF2
-        lda #EarthColum		;set gamescreen BK to green
+        lda #EarthColu		;set gamescreen BK to green
         sta COLUBK
-        ldy #176		;number of scanlines remaining
+        ldy #192 - SkyHeight - ScoreHeight	;number of scanlines remaining
         
 
 DrawGameScreen
-	
-        
+	 
         ;lda (KongolTablePtr),y
    	;sta GRP0
+        
+        				;TODO Draw Gates
         
         
         tya				;Start of Skipdraw
@@ -195,12 +207,51 @@ KongolContinue
 	sta GRP0
 	lda KongolC,x
         sta COLUP0
-        dey
+        
+        
+        dey				;Free Cycles on visible scanlines
         sta WSYNC
         bne DrawGameScreen
+	
+        lda ScoreHeight
+        tay
+         				
 
+
+DrawScore				;TODO Draw Score
+	lda #ScoreBKColu
+        sta COLUBK
+
+	lda Score			
+        and #$0F
+        sta Temp
         
-
+        asl
+        asl
+        adc Temp
+        sta ScoreDigitOnes
+        
+        lda Score
+        and #$F0
+        lsr
+        lsr
+        sta Temp
+        lsr
+        lsr
+        adc Temp
+        sta ScoreDigitTens
+   
+DrawScoreLoop
+	ldx ScoreDigitTens
+        lda ScoreGFX
+        and #$F0
+        				;IMHERE
+        dey
+        sta WSYNC
+        bne DrawScoreLoop
+	
+        
+        
 
 ; 29 lines of overscan
 Overscan
@@ -210,9 +261,12 @@ Overscan
         sta PF0
         sta PF1
         sta PF2
-
+	
+        inc Score
+        
 	TIMER_SETUP 29
         TIMER_WAIT
+        
         
 ; total = 262 lines, go to next frame
         jmp NextFrame
