@@ -25,6 +25,7 @@ Mode		ds 1		;0 = Title Screen
                 org $80
 KongolTablePtr  ds 2   
 KongolYPos	ds 1
+KongolXPos 	ds 1
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
 
@@ -40,12 +41,8 @@ Start
         lda #>KongolG
         sta KongolTablePtr+1
         
-        
-        lda #$50		;Set Initial Kongol Y Position
-        sta KongolYPos
-        
-        lda #$10
-        jsr SetHorizPos
+        lda #%101
+        sta NUSIZ0
         
         lda #TitleScreen	;Start at Title Screen
         sta Mode		;
@@ -55,9 +52,10 @@ NextFrame
         bcc Start	; reset?
 ; 1 + 3 lines of VSYNC
 	VERTICAL_SYNC
-; 37 lines of underscan
-	TIMER_SETUP 37
+; 36 lines of underscan
+	TIMER_SETUP 36
         TIMER_WAIT
+        
         
 ; 192 lines of frame
         
@@ -67,7 +65,8 @@ NextFrame
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Title Screen
 DrawTitleScreen
-	ldx #192		;X = scanline number
+	
+        ldx #192		;X = scanline number
         ldy #$0			;y = vertical pixel height counter
         lda INPT4		;scan for player 0 input to switch to gameplay logic
 	rol 			;player 0 joystick button is high bit of INPT4
@@ -120,8 +119,16 @@ TitleLineFinish
 
 
 DrawGameScreenStart
+	
+
+
 	ldy #192		;Y -> scanline number
 	ldx #6			;X -> iterations of sky 
+        
+        
+        lda #$60
+        ;sta KongolXPos
+        sta KongolYPos
         
         lda #$AA 		;set BK sky to blue
         sta COLUBK
@@ -130,6 +137,8 @@ DrawGameScreenStart
         sta PF0
         sta PF1
         sta PF2
+        
+        
         
         
         
@@ -174,10 +183,9 @@ DrawGameScreen
    	;sta GRP0
         
         
-        tya
+        tya				;Start of Skipdraw
         ;sec
-        
-        sbc KongolYPos			;Kongol Ypos
+        sbc KongolYPos			
         adc KongolHeight
         bcc SkipDraw
         tax
@@ -190,6 +198,7 @@ KongolContinue
         dey
         sta WSYNC
         bne DrawGameScreen
+
         
 
 
@@ -201,8 +210,10 @@ Overscan
         sta PF0
         sta PF1
         sta PF2
+
 	TIMER_SETUP 29
         TIMER_WAIT
+        
 ; total = 262 lines, go to next frame
         jmp NextFrame
  
