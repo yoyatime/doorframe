@@ -23,7 +23,8 @@ Mode		ds 1		;0 = Title Screen
                                 
 ; Game Screen Overlay                
                 org $80
-KongolTablePtr  ds 2                                
+KongolTablePtr  ds 2   
+KongolYPos	ds 1
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
 
@@ -37,7 +38,14 @@ Start
         lda #<KongolG		;Assign P0 sprite pointer 
         sta KongolTablePtr
         lda #>KongolG
-        sta KongolTablePtr+1	
+        sta KongolTablePtr+1
+        
+        
+        lda #$50		;Set Initial Kongol Y Position
+        sta KongolYPos
+        
+        lda #$10
+        jsr SetHorizPos
         
         lda #TitleScreen	;Start at Title Screen
         sta Mode		;
@@ -112,14 +120,18 @@ TitleLineFinish
 
 
 DrawGameScreenStart
-	ldy #192		;Y = scanline number
-	ldx #6			;
+	ldy #192		;Y -> scanline number
+	ldx #6			;X -> iterations of sky 
+        
         lda #$AA 		;set BK sky to blue
         sta COLUBK
-        lda #$00
+        
+        lda #$00		;Clear Playfield
         sta PF0
         sta PF1
         sta PF2
+        
+        
         
 DrawSkyline
 	lda #EarthColum		;set PF mountains to green
@@ -127,6 +139,7 @@ DrawSkyline
         
         sta WSYNC		;2 scanlines of sky without mountains
         sta WSYNC		;
+        
         
 DrawSkylineLoop
         lda PF0Sky,X
@@ -160,10 +173,20 @@ DrawGameScreen
         ;lda (KongolTablePtr),y
    	;sta GRP0
         
-        sec
-        tya
         
-
+        tya
+        ;sec
+        
+        sbc KongolYPos			;Kongol Ypos
+        adc KongolHeight
+        bcc SkipDraw
+        tax
+        lda KongolG,x
+        
+KongolContinue
+	sta GRP0
+	lda KongolC,x
+        sta COLUP0
         dey
         sta WSYNC
         bne DrawGameScreen
@@ -182,10 +205,18 @@ Overscan
         TIMER_WAIT
 ; total = 262 lines, go to next frame
         jmp NextFrame
-        
+ 
+ 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Skipdraw Bumper
+
+SkipDraw
+	lda #0
+        beq KongolContinue
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Set horizontal position of object
+; Set horizontal position of Kongol
 SetHorizPos
         sta HMCLR
         sta WSYNC       ; start a new line
