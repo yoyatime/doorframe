@@ -35,7 +35,8 @@ Mode		ds 1		;0 = Title Screen
                                 
 ; Game Screen Memory Overlay                
 Temp		ds 1
-KongolTablePtr  ds 2   
+KongolTablePtr  ds 2
+KongolColorPtr	ds 2
 KongolYPos	ds 1		;range: (13,99)
 KongolXPos 	ds 1		;range: (0F,8C)
 KongolState	ds 1
@@ -63,6 +64,12 @@ Start
         sta KongolTablePtr
         lda #>KongolStandingG
         sta KongolTablePtr+1
+        
+        lda #<KongolStandingC
+        sta KongolColorPtr
+        
+        lda #>KongolStandingC
+        sta KongolColorPtr+1
         
         lda #KongolInitX
         sta KongolXPos
@@ -391,7 +398,7 @@ DrawGameScreen
         
 KongolContinue
 	sta GRP0
-	lda KongolC,y
+	lda (KongolColorPtr),y
         sta COLUP0
         
         txa
@@ -461,7 +468,7 @@ KongolStandingG
         .byte #%11111111;$2C
         .byte #%11111111;$18
         .byte #%00011000;$2C
-        .byte #%00011000;$2C
+        .byte #%00111100;$2C
         .byte #%00111100;$2C
         .byte #%00111100;$30
         .byte #%00111100;$2C
@@ -471,32 +478,58 @@ KongolStandingG
         
         
 KongolDuckingG
-        .byte #%01100110;$06
-        .byte #%01100110;$F0
-        .byte #%01100110;$F0
-        .byte #%00100100;$2C
-        .byte #%00100100;$2C
-        .byte #%00111100;$F2
-        .byte #%00111100;$04
-        .byte #%00111100;$2C
-        .byte #%00111101;$2C
-        .byte #%10111101;$2C
-        .byte #%10111101;$F2
-        .byte #%10111101;$F2
-        .byte #%11111111;$2C
-        .byte #%11111111;$2C
-        .byte #%11111111;$2C
-        .byte #%11111111;$18
-        .byte #%00000000;$2C
-        .byte #%00011000;$2C
-        .byte #%00111100;$2C
-        .byte #%00111100;$30
-        .byte #%00111100;$2C
-        .byte #%00011000;$F0
-        .byte #%00011000;$F0
-        .byte #%00011000;$F0
+        .byte #%11000000;--
+        .byte #%11001111;--
+        .byte #%11001111;--
+        .byte #%11001100;--
+        .byte #%11111100;--
+        .byte #%00111100;--
+        .byte #%00111100;--
+        .byte #%10111101;--
+        .byte #%10111101;--
+        .byte #%11111111;--
+        .byte #%11111111;--
+        .byte #%11111111;--
+        .byte #%11111111;--
+        .byte #%00011000;--
+        .byte #%00111100;--
+        .byte #%00111100;--
+        .byte #%00111100;--
+        .byte #%00111100;--
+        .byte #%00011000;--
+        .byte #%00011000;--
+        .byte #%00011000;--
+        .byte #%00000000;--
+        .byte #%00000000;--
+        .byte #%00000000;--
 
-KongolC
+KongolStandingC
+        .byte #$06;
+        .byte #$F0;
+        .byte #$F0;
+        .byte #$2C;
+        .byte #$2C;
+        .byte #$F2;
+        .byte #$04;
+        .byte #$2C;
+        .byte #$2C;
+        .byte #$2C;
+        .byte #$F2;
+        .byte #$F2;
+        .byte #$2C;
+        .byte #$2C;
+        .byte #$2C;
+        .byte #$18;
+        .byte #$2C;
+        .byte #$2C;
+        .byte #$2C;
+        .byte #$30;
+        .byte #$2C;
+        .byte #$F0;
+        .byte #$F0;
+        .byte #$F0;
+
+KongolDuckingC
         .byte #$06;
         .byte #$F0;
         .byte #$F0;
