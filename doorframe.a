@@ -11,11 +11,16 @@ GameScreen 	equ #$01
 EarthColu	equ #$D2
 SkyColu		equ #$AA
 KongolHeight  	equ #24
-KongolInitPos	equ #20
+KongolInitY	equ #$20
+KongolInitX     equ #$70
 SkyHeight 	equ #16
 ScoreHeight	equ #16
 ScoreBKColu	equ #$A0
 
+XLimitLow	equ #$13
+XLimitHigh	equ #$7C
+YLimitLow	equ #$1A
+YLimitHigh	equ #$99
 
 ; Variables segment
 
@@ -29,13 +34,13 @@ Mode		ds 1		;0 = Title Screen
 ; Game Screen Memory Overlay                
 Temp		ds 1
 KongolTablePtr  ds 2   
-KongolYPos	ds 1
-KongolXPos 	ds 1
+KongolYPos	ds 1		;range: (13,99)
+KongolXPos 	ds 1		;range: (0F,8C)
 Score		ds 1
 ScoreDigitOnes  ds 1
 ScoreDigitTens	ds 1
 ScoreGFX	ds 1
-DigitGFX
+;DigitGFX
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
 
@@ -53,12 +58,15 @@ Start
         lda #>KongolG
         sta KongolTablePtr+1
         
-        lda #%101		;Set doublewide P0
-        sta NUSIZ0
-        
-        lda #$3A		;Define initial P0 position
+        lda #KongolInitX
         sta KongolXPos
+        
+        lda #KongolInitY
         sta KongolYPos
+        
+        
+        lda #%101		;Set doublewide P0
+        sta NUSIZ0        
         
         lda #TitleScreen	;Start at Title Screen
         sta Mode		;
@@ -136,11 +144,44 @@ TitleLineFinish
 DrawGameScreenStart
 	ldy #192		;Y -> scanline number
 	
-        ;lda KongolXPos
-        ldx #0
+        
+        			;TODO Joystick Input
+        
+        lda SWCHA
+        
+TestRight
+	and #%10000000		;Test Joystick Right
+        bne TestLeft
+        inc KongolXPos
+        jmp InputDone
+        
+TestLeft
+	lda SWCHA
+	and #%01000000		;Test Joystick Left
+        
+        bne InputDone
+        dec KongolXPos
+        
+InputDone
+	ldx #0			;Clear playfield
         stx PF0
         stx PF1
         stx PF2
+        
+        lda KongolXPos		;Horizontal Bound Checking
+        cmp #XLimitLow
+        bpl InBoundsLow
+
+        lda XLimitLow
+        sta KongolXPos
+        
+InBoundsLow
+	cmp #XLimitHigh
+        bcc InBounds
+        lda #XLimitHigh
+        sta KongolXPos
+        
+InBounds
         sta WSYNC
         lda KongolXPos		;set 
         jsr SetHorizPos
