@@ -16,6 +16,8 @@ KongolInitX     equ #$70
 SkyHeight 	equ #16
 ScoreHeight	equ #16
 ScoreBKColu	equ #$A0
+Standing	equ #$00
+Ducking		equ #$01
 
 XLimitLow	equ #$13
 XLimitHigh	equ #$7C
@@ -36,10 +38,14 @@ Temp		ds 1
 KongolTablePtr  ds 2   
 KongolYPos	ds 1		;range: (13,99)
 KongolXPos 	ds 1		;range: (0F,8C)
+KongolState	ds 1
 Score		ds 1
 ScoreDigitOnes  ds 1
 ScoreDigitTens	ds 1
 ScoreGFX	ds 1
+GameSpeed	ds 1
+
+
 ;DigitGFX
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
@@ -53,9 +59,9 @@ Start
         lda #%00000000
         sta CTRLPF
         
-        lda #<KongolG		;Assign P0 sprite pointer 
+        lda #<KongolStandingG		;Assign P0 sprite pointer 
         sta KongolTablePtr
-        lda #>KongolG
+        lda #>KongolStandingG
         sta KongolTablePtr+1
         
         lda #KongolInitX
@@ -145,11 +151,31 @@ DrawGameScreenStart
 	ldy #192		;Y -> scanline number
 	
         
-        			;TODO Joystick Input
+	lda INPT4        	
+        rol 			;player 0 joystick button is high bit of INPT4
+        bcs TestRight
         
-        lda SWCHA
+        lda #<KongolDuckingG
+        sta KongolTablePtr
+        
+        lda #>KongolDuckingG
+        sta KongolTablePtr+1
+        
+        lda #Ducking
+        sta KongolState
+        jmp InputDone
         
 TestRight
+	lda #<KongolStandingG
+        sta KongolTablePtr
+        
+        lda #>KongolStandingG
+        sta KongolTablePtr+1
+
+	lda #Standing
+        sta KongolState
+        lda SWCHA		
+
 	and #%10000000		;Test Joystick Right
         bne TestLeft
         inc KongolXPos
@@ -163,6 +189,7 @@ TestLeft
         dec KongolXPos
         
 InputDone
+	sta WSYNC
 	ldx #0			;Clear playfield
         stx PF0
         stx PF1
@@ -240,7 +267,7 @@ DrawSkylineLoop
         jsr DrawGameScreen
         		
 
-DrawScore				;TODO Draw Score
+DrawScore				
 	lda #ScoreBKColu
         sta COLUBK
 
@@ -352,30 +379,34 @@ DrawGameScreen
         ;lda (KongolTablePtr),y
    	;sta GRP0
         
-        				;TODO Draw Gates
-        
         
         tya				;Start of Skipdraw
-        ;sec
+        tax				;store y in x
+        ;sec				;TODO Animate Ducking
         sbc KongolYPos			
         adc KongolHeight
         bcc SkipDraw
-        tax
-        lda KongolG,x
+        tay
+        lda (KongolTablePtr),y
         
 KongolContinue
 	sta GRP0
-	lda KongolC,x
+	lda KongolC,y
         sta COLUP0
         
+        txa
+        tay
         
         dey				;Free Cycles on visible scanlines
         sta WSYNC
+					;TODO Draw Gates       
+        
         bne DrawGameScreen
 	
         lda ScoreHeight
         tay
         rts
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -412,7 +443,7 @@ DivideLoop
 
 ;---Sprite Data from PlayerPal 2600---
 
-KongolG
+KongolStandingG
         .byte #%01100110;$06
         .byte #%01100110;$F0
         .byte #%01100110;$F0
@@ -430,6 +461,33 @@ KongolG
         .byte #%11111111;$2C
         .byte #%11111111;$18
         .byte #%00011000;$2C
+        .byte #%00011000;$2C
+        .byte #%00111100;$2C
+        .byte #%00111100;$30
+        .byte #%00111100;$2C
+        .byte #%00011000;$F0
+        .byte #%00011000;$F0
+        .byte #%00011000;$F0
+        
+        
+KongolDuckingG
+        .byte #%01100110;$06
+        .byte #%01100110;$F0
+        .byte #%01100110;$F0
+        .byte #%00100100;$2C
+        .byte #%00100100;$2C
+        .byte #%00111100;$F2
+        .byte #%00111100;$04
+        .byte #%00111100;$2C
+        .byte #%00111101;$2C
+        .byte #%10111101;$2C
+        .byte #%10111101;$F2
+        .byte #%10111101;$F2
+        .byte #%11111111;$2C
+        .byte #%11111111;$2C
+        .byte #%11111111;$2C
+        .byte #%11111111;$18
+        .byte #%00000000;$2C
         .byte #%00011000;$2C
         .byte #%00111100;$2C
         .byte #%00111100;$30
