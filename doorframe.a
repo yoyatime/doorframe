@@ -11,7 +11,7 @@ GameScreen 	equ #$01
 EarthColu	equ #$D2
 SkyColu		equ #$AA
 KongolHeight  	equ #24
-KongolInitPos	equ #58
+KongolInitPos	equ #20
 SkyHeight 	equ #16
 ScoreHeight	equ #16
 ScoreBKColu	equ #$A0
@@ -32,9 +32,10 @@ KongolTablePtr  ds 2
 KongolYPos	ds 1
 KongolXPos 	ds 1
 Score		ds 1
-ScoreDigitOnes  ds 2
-ScoreDigitTens	ds 2
+ScoreDigitOnes  ds 1
+ScoreDigitTens	ds 1
 ScoreGFX	ds 1
+DigitGFX
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Code segment
 
@@ -44,6 +45,8 @@ ScoreGFX	ds 1
 Start
 	CLEAN_START
         
+        lda #%00000000
+        sta CTRLPF
         
         lda #<KongolG		;Assign P0 sprite pointer 
         sta KongolTablePtr
@@ -68,8 +71,7 @@ NextFrame
 ; 36 lines of underscan
 	TIMER_SETUP 35
         TIMER_WAIT
-        
-        
+
 ; 192 lines of frame
         
         cmp Mode	 		;Jump to set gamemode
@@ -135,12 +137,15 @@ DrawGameScreenStart
 	ldy #192		;Y -> scanline number
 	
         ;lda KongolXPos
-        lda KongolXPos		;set 
-        jsr SetHorizPos
-        
+        ldx #0
         stx PF0
         stx PF1
         stx PF2
+        sta WSYNC
+        lda KongolXPos		;set 
+        jsr SetHorizPos
+        
+        
      
       
         ldx #6			;X -> iterations of sky 
@@ -153,9 +158,13 @@ DrawGameScreenStart
         
         
 DrawSkyline
+	sta WSYNC
 	lda #EarthColu		;set PF mountains to green
         sta COLUPF
-        
+        lda #0
+        ;sta PF1
+        ;sta PF0
+
         sta WSYNC		;2 scanlines of sky without mountains
         
         sta WSYNC		;
@@ -186,7 +195,117 @@ DrawSkylineLoop
         sta COLUBK
         ldy #192 - SkyHeight - ScoreHeight	;number of scanlines remaining
         
+	
+        jsr DrawGameScreen
+        		
 
+DrawScore				;TODO Draw Score
+	lda #ScoreBKColu
+        sta COLUBK
+
+	lda Score			
+        and #$0F
+        sta Temp
+        
+        asl
+        asl
+        adc Temp
+        sta ScoreDigitOnes
+        
+        lda Score
+        and #$F0
+        lsr
+        lsr
+        sta Temp
+        lsr
+        lsr
+        adc Temp
+        sta ScoreDigitTens
+	
+	
+        ldx #5
+        
+DrawScoreLoop
+	ldy ScoreDigitTens
+        lda DigitsG,y
+        and #$F0
+        sta ScoreGFX
+        ldy ScoreDigitOnes
+        lda #$0
+        sta PF1
+        
+        lda DigitsG,y
+        and #$0F
+        ora ScoreGFX
+        sta ScoreGFX
+        
+        sta WSYNC
+        ;
+        sta PF1
+        ldy ScoreGFX
+        
+        nop			;Wait for asymmetric PF
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        nop
+        ldy #$0			;Clear right side of PF
+        sty PF1
+        sta WSYNC
+        ;
+        ;sty PF1
+        inc ScoreDigitTens
+        inc ScoreDigitOnes
+        dex
+        sta PF1
+        bne DrawScoreLoop
+        ldy #$0
+        sty PF1
+        sta WSYNC
+        ;
+        ;stx PF1
+        ;sta WSYNC
+
+        dex
+        sta WSYNC
+        ; bne DrawScoreLoop
+	
+        
+        
+
+; 29 lines of overscan
+Overscan
+	;inc Score
+        ;inc Score
+        
+        lda #$00
+        sta COLUBK	;set over/underscan BG to black
+        sta COLUPF	;set over/underscan PF to black
+        sta PF0
+        sta PF1
+        sta PF2
+        sta GRP0
+        sta GRP1
+	
+        
+       
+        
+	TIMER_SETUP 29
+        TIMER_WAIT
+        
+        
+; total = 262 lines, go to next frame
+        jmp NextFrame
+ 
 DrawGameScreen
 	 
         ;lda (KongolTablePtr),y
@@ -215,63 +334,9 @@ KongolContinue
 	
         lda ScoreHeight
         tay
-         				
+        rts
 
 
-DrawScore				;TODO Draw Score
-	lda #ScoreBKColu
-        sta COLUBK
-
-	lda Score			
-        and #$0F
-        sta Temp
-        
-        asl
-        asl
-        adc Temp
-        sta ScoreDigitOnes
-        
-        lda Score
-        and #$F0
-        lsr
-        lsr
-        sta Temp
-        lsr
-        lsr
-        adc Temp
-        sta ScoreDigitTens
-   
-DrawScoreLoop
-	ldx ScoreDigitTens
-        lda ScoreGFX
-        and #$F0
-        				;IMHERE
-        dey
-        sta WSYNC
-        bne DrawScoreLoop
-	
-        
-        
-
-; 29 lines of overscan
-Overscan
-	lda #$00
-        sta COLUBK	;set over/underscan BG to black
-        sta COLUPF	;set over/underscan PF to black
-        sta PF0
-        sta PF1
-        sta PF2
-	
-        inc Score
-        
-	TIMER_SETUP 29
-        TIMER_WAIT
-        
-        
-; total = 262 lines, go to next frame
-        jmp NextFrame
- 
- 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Skipdraw Bumper
 
@@ -412,6 +477,106 @@ AxeC
         
 ;---End Sprite Data---
 
+;---Begin Digit Data---
+
+DigitsG
+	.byte %01110111
+        .byte %01010101
+	.byte %01010101
+        .byte %01010101
+        .byte %01110111
+	
+        .byte %00010001
+        .byte %00010001
+        .byte %00010001
+        .byte %00010001
+        .byte %00010001
+        
+        .byte %01110111
+        .byte %00010001
+        .byte %01110111
+        .byte %01000100
+        .byte %01110111
+        
+        .byte %01110111
+        .byte %00010001
+        .byte %01110111
+        .byte %00010001
+        .byte %01110111
+        
+        .byte %01010101
+        .byte %01010101
+        .byte %01110111
+        .byte %00010001
+        .byte %00010001
+        
+        .byte %01110111
+        .byte %01000100
+        .byte %01110111
+        .byte %00010001
+        .byte %01110111
+        
+        .byte %01110111
+        .byte %01000100
+        .byte %01110111
+        .byte %01010101
+        .byte %01110111
+        
+        .byte %01110111
+        .byte %00010001
+        .byte %00010001
+        .byte %00010001
+        .byte %00010001
+        
+        .byte %01110111
+        .byte %01010101
+        .byte %01110111
+        .byte %01010101
+        .byte %01110111
+        
+        .byte %01110111
+        .byte %01010101
+        .byte %01110111
+        .byte %00010001
+        .byte %01110111
+        
+        .byte %00100010
+        .byte %01010101
+        .byte %01110111
+        .byte %01010101
+        .byte %01010101
+         
+        .byte %01100110
+        .byte %01010101
+        .byte %01100110
+        .byte %01010101
+        .byte %01100110
+        
+        .byte %00110011
+        .byte %01000100
+        .byte %01000100
+        .byte %01000100
+        .byte %00110011
+        
+        .byte %01100110
+        .byte %01010101
+        .byte %01010101
+        .byte %01010101
+        .byte %01100110
+        
+        .byte %01110111
+        .byte %01000100
+        .byte %01100110
+        .byte %01000100
+        .byte %01110111
+        
+        .byte %01110111
+        .byte %01000100
+        .byte %01100110
+        .byte %01000100
+        .byte %01000100
+        
+;---End Digit Data
 
 ;---Begin Game Screen PF Data---
 
