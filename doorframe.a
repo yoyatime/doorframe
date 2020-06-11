@@ -19,7 +19,7 @@ ScoreBKColu	equ #$A0
 Standing	equ #$00
 Ducking		equ #$01
 
-XLimitLow	equ #$13
+XLimitLow	equ #$12
 XLimitHigh	equ #$7C
 YLimitLow	equ #$1A
 YLimitHigh	equ #$99
@@ -155,7 +155,7 @@ TitleLineFinish
 
 
 DrawGameScreenStart
-	ldy #192		;Y -> scanline number
+	;ldy #192		;Y -> scanline number
 	
         
 	lda INPT4        	
@@ -168,6 +168,12 @@ DrawGameScreenStart
         lda #>KongolDuckingG
         sta KongolTablePtr+1
         
+        lda #<KongolDuckingC
+        sta KongolColorPtr
+        
+        lda #>KongolDuckingC
+        sta KongolColorPtr+1
+        
         lda #Ducking
         sta KongolState
         jmp InputDone
@@ -179,6 +185,12 @@ TestRight
         lda #>KongolStandingG
         sta KongolTablePtr+1
 
+	lda #<KongolStandingC
+        sta KongolColorPtr
+        
+        lda #>KongolStandingC
+        sta KongolColorPtr+1
+	
 	lda #Standing
         sta KongolState
         lda SWCHA		
@@ -268,7 +280,7 @@ DrawSkylineLoop
         sta PF2
         lda #EarthColu		;set gamescreen BK to green
         sta COLUBK
-        ldy #192 - SkyHeight - ScoreHeight	;number of scanlines remaining
+        ldx #192 - SkyHeight - ScoreHeight	;number of scanlines remaining
         
 	
         jsr DrawGameScreen
@@ -381,17 +393,12 @@ Overscan
 ; total = 262 lines, go to next frame
         jmp NextFrame
  
-DrawGameScreen
 	 
-        ;lda (KongolTablePtr),y
-   	;sta GRP0
-        
-        
-        tya				;Start of Skipdraw
-        tax				;store y in x
-        ;sec				;TODO Animate Ducking
+
+DrawGameScreen
+	txa				;Start of Skipdraw Routine
         sbc KongolYPos			
-        adc KongolHeight
+        adc #KongolHeight
         bcc SkipDraw
         tay
         lda (KongolTablePtr),y
@@ -401,10 +408,9 @@ KongolContinue
 	lda (KongolColorPtr),y
         sta COLUP0
         
-        txa
-        tay
-        
-        dey				;Free Cycles on visible scanlines
+        ldy Temp
+
+        dex			
         sta WSYNC
 					;TODO Draw Gates       
         
@@ -412,6 +418,8 @@ KongolContinue
 	
         lda ScoreHeight
         tay
+       
+        
         rts
 
 
@@ -478,27 +486,27 @@ KongolStandingG
         
         
 KongolDuckingG
-        .byte #%11000000;--
-        .byte #%11001111;--
-        .byte #%11001111;--
-        .byte #%11001100;--
-        .byte #%11111100;--
-        .byte #%00111100;--
-        .byte #%00111100;--
-        .byte #%10111101;--
-        .byte #%10111101;--
-        .byte #%11111111;--
-        .byte #%11111111;--
-        .byte #%11111111;--
-        .byte #%11111111;--
-        .byte #%00011000;--
-        .byte #%00111100;--
-        .byte #%00111100;--
-        .byte #%00111100;--
-        .byte #%00111100;--
-        .byte #%00011000;--
-        .byte #%00011000;--
-        .byte #%00011000;--
+        .byte #%11100110;$04
+        .byte #%01100011;$F0
+        .byte #%01100111;$2C
+        .byte #%01100110;$2C
+        .byte #%01111110;$F0
+        .byte #%01111110;$F0
+        .byte #%00111100;$2C
+        .byte #%00111101;$2C
+        .byte #%00111101;$F2
+        .byte #%00111101;$2C
+        .byte #%11111111;$2C
+        .byte #%11111111;$2C
+        .byte #%11111111;$E6
+        .byte #%10011000;$2C
+        .byte #%10111100;$2C
+        .byte #%00111100;$2C
+        .byte #%00111100;$30
+        .byte #%00111100;$2C
+        .byte #%00011000;$F0
+        .byte #%00011000;$F0
+        .byte #%00000000;$F0
         .byte #%00000000;--
         .byte #%00000000;--
         .byte #%00000000;--
@@ -530,19 +538,16 @@ KongolStandingC
         .byte #$F0;
 
 KongolDuckingC
-        .byte #$06;
-        .byte #$F0;
-        .byte #$F0;
-        .byte #$2C;
-        .byte #$2C;
-        .byte #$F2;
         .byte #$04;
+        .byte #$F0;
         .byte #$2C;
+        .byte #$2C;
+        .byte #$F0;
+        .byte #$F0;
         .byte #$2C;
         .byte #$2C;
         .byte #$F2;
         .byte #$F2;
-        .byte #$2C;
         .byte #$2C;
         .byte #$2C;
         .byte #$18;
@@ -554,6 +559,9 @@ KongolDuckingC
         .byte #$F0;
         .byte #$F0;
         .byte #$F0;
+        .byte #$0E;
+        .byte #$0E;
+        .byte #$0E;
 
 AxeG
         .byte #%00000000;$F2
