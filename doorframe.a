@@ -35,17 +35,23 @@ Mode		ds 1		;0 = Title Screen
                                 
 ; Game Screen Memory Overlay                
 Temp		ds 1
-KongolTablePtr  ds 2
+KongolGFXPtr  	ds 2
 KongolColorPtr	ds 2
+AxeGFXPtr	ds 2
+AxeColorPtr	ds 2
 KongolYPos	ds 1		;range: (13,99)
 KongolXPos 	ds 1		;range: (0F,8C)
+AxeYPos		ds 1
 KongolState	ds 1
 Score		ds 1
 ScoreDigitOnes  ds 1
 ScoreDigitTens	ds 1
 ScoreGFX	ds 1
 GameSpeed	ds 1
-
+Colp0	byte
+Colp1	byte
+YP0	byte	; Y counter for player 0
+YP1	byte	; Y counter for player 1
 
 ;DigitGFX
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -61,9 +67,9 @@ Start
         sta CTRLPF
         
         lda #<KongolStandingG		;Assign P0 sprite pointer 
-        sta KongolTablePtr
+        sta KongolGFXPtr
         lda #>KongolStandingG
-        sta KongolTablePtr+1
+        sta KongolGFXPtr+1
         
         lda #<KongolStandingC
         sta KongolColorPtr
@@ -71,12 +77,25 @@ Start
         lda #>KongolStandingC
         sta KongolColorPtr+1
         
+        lda #<AxeGFX
+        sta AxeGFXPtr
+        
+        lda #>AxeGFX
+        sta AxeGFXPtr+1
+        
+        lda #<AxeColor
+        sta AxeColorPtr
+        
+        lda #>AxeColor
+        sta AxeColorPtr+1
+        
+        
         lda #KongolInitX
         sta KongolXPos
         
         lda #KongolInitY
         sta KongolYPos
-        
+        sta AxeYPos
         
         
         
@@ -167,10 +186,10 @@ DrawGameScreenStart
         bcs TestUp
         
         lda #<KongolDuckingG
-        sta KongolTablePtr
+        sta KongolGFXPtr
         
         lda #>KongolDuckingG
-        sta KongolTablePtr+1
+        sta KongolGFXPtr+1
         
         lda #<KongolDuckingC
         sta KongolColorPtr
@@ -182,12 +201,17 @@ DrawGameScreenStart
         sta KongolState
         jmp InputDone
         
+        lda KongolYPos
+        sta YP0		; yp0 = temporary counter
+        lda AxeYPos
+        sta YP1		; yp0 = temporary counter
+        
 TestUp
 	lda #<KongolStandingG
-        sta KongolTablePtr
+        sta KongolGFXPtr
         
         lda #>KongolStandingG
-        sta KongolTablePtr+1
+        sta KongolGFXPtr+1
 
 	lda #<KongolStandingC
         sta KongolColorPtr
@@ -251,7 +275,8 @@ InBounds
         
 Kernel         			;Kernel Start
         jsr DrawSkyline
-        jsr DrawGameScreen
+        ldy #$0
+        jsr DrawGameScreenOld
         jsr DrawScore
         jsr Overscan
         jmp NextFrame
@@ -423,12 +448,63 @@ Overscan
 	 
 
 DrawGameScreen
+
+DrawSprites
+; Fetch sprite 0 values
+        lda #KongolHeight>>2	; height in 2xlines
+        sec
+        isb YP0			; INC yp0, then SBC yp0
+        bcs DoDraw0		; inside bounds?
+        lda #0			; no, load the padding offset (0)
+DoDraw0
+        tay			; -> Y
+        lda (KongolColorPtr),y	; color for both lines
+        sta Colp0		; -> colp0
+	lda (KongolGFXPtr),y	; bitmap for first line
+        sta GRP0		; -> [GRP0] (delayed due to VDEL)
+; Fetch sprite 1 values
+        lda #KongolHeight>>2	; height in 2xlines
+        sec
+        isb YP1			; INC yp0, then SBC yp0
+        bcs DoDraw1		; inside bounds?
+        lda #0			; no, load the padding offset (0)
+DoDraw1
+        tay			; -> Y
+        lda (AxeColorPtr),y	; color for both lines
+        tax
+	lda (AxeGFXPtr),y	; bitmap for first line
+        tay
+; WSYNC and store sprite values
+        lda Colp0
+	sta WSYNC
+        sty GRP1		; GRP0 is also updated due to VDELP0 flag
+        stx COLUP1
+        sta COLUP0
+; Return to caller
+	dey
+        dey
+        bne DrawSprites
+	
+	rts
+
+
+
+
+
+
+
+
+
+
+
+
+DrawGameScreenOld
 	txa				;Start of Skipdraw Routine
         sbc KongolYPos			
         adc #KongolHeight
         bcc SkipDraw
         tay
-        lda (KongolTablePtr),y
+        lda (KongolGFXPtr),y
         
 KongolContinue
 	sta GRP0
@@ -445,7 +521,7 @@ KongolContinue
         
 					;TODO Draw Gates       
         
-        bne DrawGameScreen
+        bne DrawGameScreenOld
 	
         lda ScoreHeight
         tay
@@ -597,7 +673,7 @@ KongolDuckingC
         .byte #$0E;
         .byte #$0E;
 
-AxeG
+AxeGFX
         .byte #%00000000;$F2
         .byte #%00000000;$F2
         .byte #%10000000;$F2
@@ -623,7 +699,7 @@ AxeG
         .byte #%00000000;$F0
         .byte #%00000000;$F0
 
-AxeC
+AxeColor
         .byte #$F2;
         .byte #$F2;
         .byte #$F2;
