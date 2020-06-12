@@ -78,6 +78,10 @@ Start
         sta KongolYPos
         
         
+        
+        
+        
+        
         lda #%101		;Set doublewide P0
         sta NUSIZ0        
         
@@ -160,7 +164,7 @@ DrawGameScreenStart
         
 	lda INPT4        	
         rol 			;player 0 joystick button is high bit of INPT4
-        bcs TestRight
+        bcs TestUp
         
         lda #<KongolDuckingG
         sta KongolTablePtr
@@ -178,7 +182,7 @@ DrawGameScreenStart
         sta KongolState
         jmp InputDone
         
-TestRight
+TestUp
 	lda #<KongolStandingG
         sta KongolTablePtr
         
@@ -195,17 +199,17 @@ TestRight
         sta KongolState
         lda SWCHA		
 
-	and #%10000000		;Test Joystick Right
-        bne TestLeft
-        inc KongolXPos
+	and #%00010000		;Test Joystick Right
+        bne TestDown
+        inc KongolYPos
         jmp InputDone
         
-TestLeft
+TestDown
 	lda SWCHA
-	and #%01000000		;Test Joystick Left
+	and #%00100000		;Test Joystick Left
         
         bne InputDone
-        dec KongolXPos
+        dec KongolYPos
         
 InputDone
 	sta WSYNC
@@ -214,18 +218,19 @@ InputDone
         stx PF1
         stx PF2
         
-        lda KongolXPos		;Horizontal Bound Checking
-        cmp #XLimitLow
-        bpl InBoundsLow
+        lda KongolYPos		;Horizontal Bound Checking
+        cmp #YLimitLow
+        bcs InBoundsLow
 
-        lda XLimitLow
-        sta KongolXPos
+        lda #YLimitLow
+        sta KongolYPos
+        ;jmp InBounds
         
 InBoundsLow
-	cmp #XLimitHigh
+	cmp #YLimitHigh
         bcc InBounds
-        lda #XLimitHigh
-        sta KongolXPos
+        lda #YLimitHigh
+        sta KongolYPos
         
 InBounds
         sta WSYNC
@@ -254,7 +259,12 @@ DrawSkyline
 
         sta WSYNC		;2 scanlines of sky without mountains
         
-        sta WSYNC		;
+        			;Position P1
+        sleep 20
+        sta RESP1
+        
+        
+        sta WSYNC		
         
         
 DrawSkylineLoop
@@ -358,6 +368,9 @@ DrawScoreLoop
         ldy #$0
         sty PF1
         sta WSYNC
+        
+        
+        
         ;
         ;stx PF1
         ;sta WSYNC
@@ -405,13 +418,17 @@ DrawGameScreen
         
 KongolContinue
 	sta GRP0
+        sta GRP1
 	lda (KongolColorPtr),y
         sta COLUP0
+        sta COLUP1
         
         ldy Temp
 
         dex			
         sta WSYNC
+        
+        
 					;TODO Draw Gates       
         
         bne DrawGameScreen
@@ -424,6 +441,9 @@ KongolContinue
 
 
 
+
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Skipdraw Bumper
 
@@ -433,7 +453,7 @@ SkipDraw
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Set horizontal position of Kongol
+; Set horizontal position subroutine
 SetHorizPos
         sta HMCLR
         sta WSYNC       ; start a new line
