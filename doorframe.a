@@ -12,8 +12,8 @@ EarthColu	equ #$D2
 SkyColu		equ #$AA
 KongolHeight  	equ #24
 GateHeight	equ #30
-GateInitY	equ #50
-KongolInitY	equ #$20
+GateInitY	equ #32
+KongolInitY	equ #$3A
 KongolInitX     equ #$70
 SkyHeight 	equ #16
 ArenaHeight 	equ #(192 - SkyHeight - ScoreHeight)/2
@@ -70,7 +70,7 @@ YP1	byte	; Y counter for player 1
 Start
 	CLEAN_START
         
-        lda GateInitY
+        lda #GateInitY
         sta GateYPos
         
         lda #5
@@ -86,8 +86,8 @@ Start
         lda #KongolInitY
         sta KongolYPos
         
-        lda #51
-        sta GateYPos
+        ;lda #51
+        ;sta GateYPos
         
         lda #$FA
         sta COLUP1
@@ -346,6 +346,19 @@ CollisionScored
         lda #0
         sta KongolState
         
+MoveDoor
+	lda Score
+        asl
+        adc Score
+        asl
+        adc Score
+        adc #$14
+        and #%00101111
+        adc #32
+        sta GateYPos
+        
+        
+        
 HitWall
 	lda KongolXPos
         cmp #$01
@@ -543,7 +556,7 @@ ArenaDraw
         lda #$F2
         sta COLUPF
         
-        lda #%00000001
+        lda #%00000101
         sta CTRLPF
         
         
@@ -726,10 +739,10 @@ KongolDuckingC
         .byte #$0E;
 
 GateGFX
-	.byte #%11000000;$F2
-	.byte #%11110000;$F2
+	.byte #%11111100;$F2
+	.byte #%11111110;$F2
         .byte #%11111111;$F2
-        .byte #%11000000;$F2
+        .byte #%11111111;$F2
         .byte #%11000000;$F0
         .byte #%11000000;$F0
         .byte #%11000000;$F0
@@ -752,10 +765,10 @@ GateGFX
         .byte #%11000000;$06
         .byte #%11000000;$06
         .byte #%11000000;$06
-        .byte #%11000000;$02
+        .byte #%11111111;$02
         .byte #%11111111;$F0
-        .byte #%11110000;$02
-        .byte #%11000000;$F2
+        .byte #%11111110;$02
+        .byte #%11111100;$F2
 
 GateColor
         .byte #$F2;
