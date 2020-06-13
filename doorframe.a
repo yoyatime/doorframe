@@ -121,13 +121,16 @@ DrawTitleScreen
 	
         ldx #192		;X = scanline number
         ldy #$0			;y = vertical pixel height counter
-        lda INPT4		;scan for player 0 input to switch to gameplay logic
-	rol 			;player 0 joystick button is high bit of INPT4
+        lda SWCHA		;scan for player 0 input to switch to gameplay logic
+	;rol 			;player 0 joystick button is high bit of INPT4
+        adc #1
         bcs DrawTitleScreenLoop
+        ;inc Temp
         lda #GameScreen		;set gamemode to game screen
         sta Mode		;
         
-DrawTitleScreenLoop        
+DrawTitleScreenLoop 
+	
         txa
         adc #$FB		;Color Playfield with COLU X + 3
         sta COLUPF
@@ -160,7 +163,7 @@ TitleLineFinish
         
         
         sta WSYNC
-        ;dec Temp
+        
 	dex
         bne DrawTitleScreenLoop
         jsr Overscan
@@ -174,7 +177,7 @@ TitleLineFinish
 
 DrawGameScreenStart
 	;ldy #192		;Y -> scanline number
-
+	;sta CXCLR
 
 ; KongolDraw = ARENA_HEIGHT + KongolHeight - Y position
         lda #(ArenaHeight + KongolHeight)
@@ -190,7 +193,7 @@ DrawGameScreenStart
         sbc KongolYPos
         sta KongolPtr
         
-        lda #$F2			
+        lda #$F6			
         
         sbc #0
         sta KongolPtr+1
@@ -202,7 +205,7 @@ DrawGameScreenStart
         sbc KongolYPos
         sta KongolColorPtr
         
-        lda #$F2			
+        lda #$F6			
         
         sbc #0
         sta KongolColorPtr+1
@@ -313,11 +316,46 @@ InBounds
         lda KongolXPos		;set 
         jsr SetHorizPos
         
+CollisionPoked
+	lda KongolXPos
         
+        cmp #$06
+        bne CollisionScored
+        lda CXPPMM
+        rol
+        bcc CollisionScored
+	jmp YouDied
+YouDied
+	lda #KongolInitX
+        sta KongolXPos
+        lda #0
+        sta Score
+        sta KongolState
+        jmp CollisionEnd
         
+CollisionScored
+	lda KongolXPos
+	cmp #$02
+        bne HitWall
+	lda CXPPMM
+        rol
+        bcc HitWall
+        inc Score
+        lda #KongolInitX
+        sta KongolXPos
+        lda #0
+        sta KongolState
+        
+HitWall
+	lda KongolXPos
+        cmp #$01
+        beq YouDied
+        
+CollisionEnd        
         
         
 Kernel         			;Kernel Start
+	sta CXCLR
         jsr DrawSkyline
         ;jsr DrawGameScreenOld
         jsr ArenaDraw
@@ -490,9 +528,6 @@ Overscan
         sta PF2
         sta GRP0
         sta GRP1
-	
-        
-       
         
 	TIMER_SETUP 29
         TIMER_WAIT
@@ -584,7 +619,7 @@ DivideLoop
 ; Graphical Data
 
 ;---Sprite Data from PlayerPal 2600---
-
+	align $F600
 KongolStandingG
         .byte #%01100110;$06
         .byte #%01100110;$F0
@@ -694,30 +729,30 @@ GateGFX
 	.byte #%11000000;$F2
 	.byte #%11110000;$F2
         .byte #%11111111;$F2
-        .byte #%10000000;$F2
-        .byte #%10000000;$F0
-        .byte #%10000000;$F0
-        .byte #%10000000;$F0
-        .byte #%10000000;$F0
-        .byte #%10000000;$F0
-        .byte #%10000000;$F0
-        .byte #%10000000;$F0
-        .byte #%10000000;$F0
-        .byte #%10000000;$F2
-        .byte #%10000000;$04
-        .byte #%10000000;$06
-        .byte #%10000000;$06
-        .byte #%10000000;$06
-        .byte #%10000000;$06
-        .byte #%10000000;$06
-        .byte #%10000000;$06
-        .byte #%10000000;$06
-        .byte #%10000000;$06
-        .byte #%10000000;$02
-        .byte #%10000000;$06
-        .byte #%10000000;$06
-        .byte #%10000000;$06
-        .byte #%10000000;$02
+        .byte #%11000000;$F2
+        .byte #%11000000;$F0
+        .byte #%11000000;$F0
+        .byte #%11000000;$F0
+        .byte #%11000000;$F0
+        .byte #%11000000;$F0
+        .byte #%11000000;$F0
+        .byte #%11000000;$F0
+        .byte #%11000000;$F0
+        .byte #%11000000;$F2
+        .byte #%11000000;$04
+        .byte #%11000000;$06
+        .byte #%11000000;$06
+        .byte #%11000000;$06
+        .byte #%11000000;$06
+        .byte #%11000000;$06
+        .byte #%11000000;$06
+        .byte #%11000000;$06
+        .byte #%11000000;$06
+        .byte #%11000000;$02
+        .byte #%11000000;$06
+        .byte #%11000000;$06
+        .byte #%11000000;$06
+        .byte #%11000000;$02
         .byte #%11111111;$F0
         .byte #%11110000;$02
         .byte #%11000000;$F2
