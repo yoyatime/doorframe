@@ -93,6 +93,8 @@ Start
         sta COLUP1
         
         
+        sta Temp
+        
         lda #%101		;Set doublewide P0
         sta NUSIZ0        
         
@@ -158,6 +160,7 @@ TitleLineFinish
         
         
         sta WSYNC
+        ;dec Temp
 	dex
         bne DrawTitleScreenLoop
         jsr Overscan
@@ -227,6 +230,7 @@ DrawGameScreenStart
         
 SlidingLeft
 	dec KongolXPos
+        jmp InputDone
 
 AwaitingInput
 	lda INPT4        	
@@ -515,9 +519,11 @@ ArenaLoop:                  ;   13 - from bpl ArenaLoop
     ; continuation of line 2 of the 2LK
     ; this precalculates data that's used on line 1 of the 2LK
 
-        lda #KongolHeight-1 ; 2 15 - height of the humanoid graphics, subtract 1 due to starting with 0
+        lda #KongolHeight-1 ; 2 15 - height of the humanoid graphics, subtract 1 due to 
+        		    ;starting with 0
         dcp KongolDraw      ; 5 20 - Decrement HumanDraw and compare with height
-        bcs DoDrawGrp0      ; 2 22 - (3 23) if Carry is Set, then humanoid is on current scanline
+        bcs DoDrawGrp0      ; 2 22 - (3 23) if Carry is Set, 
+        		    ;then humanoid is on current scanline
         lda #0              ; 2 24 - otherwise use 0 to turn off player0
         .byte $2C           ; 4 28 - $2C = BIT with absolute addressing, trick that
                             ;        causes the lda (HumanPtr),y to be skipped
