@@ -11,7 +11,8 @@ GameScreen 	equ #$01
 EarthColu	equ #$D2
 SkyColu		equ #$AA
 KongolHeight  	equ #24
-GateHeight	equ #22
+GateHeight	equ #30
+GateInitY	equ #50
 KongolInitY	equ #$20
 KongolInitX     equ #$70
 SkyHeight 	equ #16
@@ -69,9 +70,11 @@ YP1	byte	; Y counter for player 1
 Start
 	CLEAN_START
         
+        lda GateInitY
+        sta GateYPos
         
-        lda #15
-        ldx #1
+        lda #5
+        ldx #$01
         jsr SetHorizPos
         
         lda #%00000000
@@ -85,6 +88,8 @@ Start
         
         lda #51
         sta GateYPos
+        
+        lda #$FA
         sta COLUP1
         
         
@@ -199,14 +204,6 @@ DrawGameScreenStart
         sbc #0
         sta KongolColorPtr+1
         
-        ;lda #<(KongolStandingC + KongolHeight - 1)
-        ;sec
-        ;sbc KongolYPos
-        ;sta KongolColorPtr
-        
-        ;lda #>(KongolStandingC + KongolHeight - 1)
-        ;sbc #0
-        ;sta KongolColorPtr+1
         
 ; GateDraw = ARENA_HEIGHT + HUMAN_HEIGHT - Y position
         lda #(ArenaHeight + GateHeight)
@@ -223,6 +220,15 @@ DrawGameScreenStart
         sbc #0
         sta GatePtr+1
         
+        
+        lda KongolState
+        ror
+        bcc AwaitingInput
+        
+SlidingLeft
+	dec KongolXPos
+
+AwaitingInput
 	lda INPT4        	
         rol 			;player 0 joystick button is high bit of INPT4
         bcs TestUp
@@ -239,12 +245,6 @@ DrawGameScreenStart
         lda #>KongolDuckingC
         sta KongolColorSelected+1
         
-        ;lda #<AxeGFX
-        ;sta AxeGFXPtr
-        
-        ;lda #>KongolDuckingG
-        ;sta KongolGFXPtr+1
-
         
         
         lda #Ducking
@@ -339,8 +339,8 @@ DrawSkyline
         sta WSYNC		;2 scanlines of sky without mountains
         
         			;Position P1
-        sleep 20
-        sta RESP1
+        ;sleep 20
+        ;sta RESP1
         
         
         sta WSYNC		
@@ -498,32 +498,45 @@ Overscan
         rts
 
 ArenaDraw
-	ldy #ArenaHeight   ; 2  7 - the arena will be 180 scanlines (from 0-89)*2        
+	
+	lda #%00110000
+        sta PF0
+        lda #$F2
+        sta COLUPF
+        
+        lda #%00000001
+        sta CTRLPF
+        
+        
+        ldy #ArenaHeight   ; 2  7 - the arena will be 180 scanlines (from 0-89)*2   
+        
         
 ArenaLoop:                  ;   13 - from bpl ArenaLoop
     ; continuation of line 2 of the 2LK
     ; this precalculates data that's used on line 1 of the 2LK
+
         lda #KongolHeight-1 ; 2 15 - height of the humanoid graphics, subtract 1 due to starting with 0
-        dcp KongolDraw       ; 5 20 - Decrement HumanDraw and compare with height
+        dcp KongolDraw      ; 5 20 - Decrement HumanDraw and compare with height
         bcs DoDrawGrp0      ; 2 22 - (3 23) if Carry is Set, then humanoid is on current scanline
         lda #0              ; 2 24 - otherwise use 0 to turn off player0
         .byte $2C           ; 4 28 - $2C = BIT with absolute addressing, trick that
                             ;        causes the lda (HumanPtr),y to be skipped
 DoDrawGrp0:                 ;   23 - from bcs DoDrawGrp0
-        lda (KongolPtr),y    ; 5 28 - load the shape for player0
+        lda (KongolPtr),y   ; 5 28 - load the shape for player0
         sta WSYNC           ; 3 31
 ;---------------------------------------
     ; start of line 1 of the 2LK
         sta GRP0            ; 3  3 - @ 0-22, update player0 to draw Human
         lda (KongolColorPtr),y
         sta COLUP0
-        ldx #%11111111      ; 2  5 - playfield pattern for vertical alignment testing
-
+        ;ldx #%11111111      ; 2  5 - playfield pattern for vertical alignment testing
+	
     ; precalculate data that's needed for line 2 of the 2LK        
         lda #GateHeight-1 ; 2 10 - height of the humanoid graphics, 
         dcp GateDraw         ; 5 15 - Decrement BoxDraw and compare with height
         bcs DoDrawGrp1      ; 2 17 - (3 18) if Carry is Set, then box is on current scanline
         lda #0              ; 2 19 - otherwise use 0 to turn off player1
+        ;sta PF0
         .byte $2C           ; 4 23 - $2C = BIT with absolute addressing, trick that
                             ;        causes the lda (BoxPtr),y to be skipped
 DoDrawGrp1:                 ;   18 - from bcs DoDrawGRP1
@@ -533,7 +546,7 @@ DoDrawGrp1:                 ;   18 - from bcs DoDrawGRP1
     ; start of line 2 of the 2LK
         sta GRP1            ; 3  3 - @0-22, update player1 to draw box
         ldx #0              ; 2  5 - PF pattern for alignment testing
-        stx PF0             ; 3  8 - @0-22
+        ;stx PF0             ; 3  8 - @0-22
         dey                 ; 2 10 - decrease the 2LK loop counter
         bne ArenaLoop       ; 2 12 - (3 13) branch if there's more Arena to draw
 
@@ -672,6 +685,8 @@ KongolDuckingC
         .byte #$0E;
 
 GateGFX
+	.byte #%11000000;$F2
+	.byte #%11110000;$F2
         .byte #%11111111;$F2
         .byte #%10000000;$F2
         .byte #%10000000;$F0
@@ -693,7 +708,13 @@ GateGFX
         .byte #%10000000;$06
         .byte #%10000000;$06
         .byte #%10000000;$02
+        .byte #%10000000;$06
+        .byte #%10000000;$06
+        .byte #%10000000;$06
+        .byte #%10000000;$02
         .byte #%11111111;$F0
+        .byte #%11110000;$02
+        .byte #%11000000;$F2
 
 GateColor
         .byte #$F2;
