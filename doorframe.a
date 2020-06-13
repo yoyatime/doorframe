@@ -37,13 +37,12 @@ Mode		ds 1		;0 = Title Screen
                                 
 ; Game Screen Memory Overlay                
 Temp		ds 1
+KongolColorSelected	ds 2
+KongolGFXSelected 	ds 2
 KongolGFXPtr  	ds 2
 KongolColorPtr	ds 2
-AxeGFXPtr	ds 2
-AxeColorPtr	ds 2
 KongolYPos	ds 1		;range: (13,99)
 KongolXPos 	ds 1		;range: (0F,8C)
-AxeYPos		ds 1
 KongolState	ds 1
 Score		ds 1
 ScoreDigitOnes  ds 1
@@ -83,7 +82,6 @@ Start
         
         lda #KongolInitY
         sta KongolYPos
-        sta AxeYPos
         
         lda #51
         sta GateYPos
@@ -168,7 +166,8 @@ TitleLineFinish
 
 DrawGameScreenStart
 	;ldy #192		;Y -> scanline number
-	
+
+
 ; KongolDraw = ARENA_HEIGHT + KongolHeight - Y position
         lda #(ArenaHeight + KongolHeight)
         sec
@@ -176,15 +175,40 @@ DrawGameScreenStart
         sta KongolDraw
         
 ; HumanPtr = HumanGfx + HUMAN_HEIGHT - 1 - Y position
-        lda #<(KongolStandingG + KongolHeight - 1)
+	lda <KongolGFXSelected
+        adc #KongolHeight-2
+
         sec
         sbc KongolYPos
         sta KongolPtr
-        lda #>(KongolStandingG + KongolHeight - 1)
+        
+        lda #$F2			
+        
         sbc #0
         sta KongolPtr+1
+; ColorPtr = HumanGfx + HUMAN_HEIGHT - 1 - Y position  
+	lda KongolColorSelected
+        adc #KongolHeight-2
+
+        sec
+        sbc KongolYPos
+        sta KongolColorPtr
         
-; BoxDraw = ARENA_HEIGHT + HUMAN_HEIGHT - Y position
+        lda #$F2			
+        
+        sbc #0
+        sta KongolColorPtr+1
+        
+        ;lda #<(KongolStandingC + KongolHeight - 1)
+        ;sec
+        ;sbc KongolYPos
+        ;sta KongolColorPtr
+        
+        ;lda #>(KongolStandingC + KongolHeight - 1)
+        ;sbc #0
+        ;sta KongolColorPtr+1
+        
+; GateDraw = ARENA_HEIGHT + HUMAN_HEIGHT - Y position
         lda #(ArenaHeight + GateHeight)
         sec
         sbc GateYPos
@@ -204,16 +228,16 @@ DrawGameScreenStart
         bcs TestUp
         
         lda #<KongolDuckingG
-        sta KongolGFXPtr
+        sta KongolGFXSelected
         
         lda #>KongolDuckingG
-        sta KongolGFXPtr+1
+        sta KongolGFXSelected+1
         
         lda #<KongolDuckingC
-        sta KongolColorPtr
+        sta KongolColorSelected
         
         lda #>KongolDuckingC
-        sta KongolColorPtr+1
+        sta KongolColorSelected+1
         
         ;lda #<AxeGFX
         ;sta AxeGFXPtr
@@ -227,23 +251,20 @@ DrawGameScreenStart
         sta KongolState
         jmp InputDone
         
-        lda KongolYPos
-        sta YP0		; yp0 = temporary counter
-        lda AxeYPos
-        sta YP1		; yp0 = temporary counter
+
         
 TestUp
 	lda #<KongolStandingG
-        sta KongolGFXPtr
+        sta KongolGFXSelected
         
         lda #>KongolStandingG
-        sta KongolGFXPtr+1
+        sta KongolGFXSelected+1
 
 	lda #<KongolStandingC
-        sta KongolColorPtr
+        sta KongolColorSelected
         
         lda #>KongolStandingC
-        sta KongolColorPtr+1
+        sta KongolColorSelected+1
 	
 	lda #Standing
         sta KongolState
@@ -252,7 +273,7 @@ TestUp
 	and #%00010000		;Test Joystick Right
         bne TestDown
         inc KongolYPos
-        inc GateYPos
+        
         jmp InputDone
         
 TestDown
@@ -261,7 +282,6 @@ TestDown
         
         bne InputDone
         dec KongolYPos
-        dec GateYPos
         
 InputDone
 	sta WSYNC
@@ -495,9 +515,10 @@ DoDrawGrp0:                 ;   23 - from bcs DoDrawGrp0
 ;---------------------------------------
     ; start of line 1 of the 2LK
         sta GRP0            ; 3  3 - @ 0-22, update player0 to draw Human
-        sta COLUPF
+        lda (KongolColorPtr),y
+        sta COLUP0
         ldx #%11111111      ; 2  5 - playfield pattern for vertical alignment testing
-        ;stx PF0             ; 3  8 - @ 0-22
+
     ; precalculate data that's needed for line 2 of the 2LK        
         lda #GateHeight-1 ; 2 10 - height of the humanoid graphics, 
         dcp GateDraw         ; 5 15 - Decrement BoxDraw and compare with height
