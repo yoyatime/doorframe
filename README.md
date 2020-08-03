@@ -1,16 +1,22 @@
 doorframe
 =====
-"Kongol's Struggle", an Atari 2600 Homebrew Game, featuring Kongol from "The Legend of Dragoon" as he attempts to fit into doorframes that are too small for him. 
+"Kongol's Struggle", an Atari 2600 Homebrew Game written in 6502 Assembly, featuring Kongol from "The Legend of Dragoon" as he attempts to fit into doorframes that are too small for him. 
 
 Controls:
 
-Move Left:
-Player 1 Joystick Left
+Start Game:
+Player 1 Joystick
 
-Move Right:
-Player 1 Joystick Right
+Move Up:
+Player 1 Joystick Up
 
-Duck:
-Player 1 Button (In development)
+Move Down:
+Player 1 Joystick Down
+
+Duck and Dash:
+Player 1 Button
 
 [Open this project in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=vcs&githubURL=https%3A%2F%2Fgithub.com%2Fyoyatime%2Fdoorframe&file=doorframe.a).
+
+
+Written by Ali Burakaz
