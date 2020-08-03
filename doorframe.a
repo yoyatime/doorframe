@@ -6,22 +6,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Constants
+
+;Mode Switching
 TitleScreen 	equ #$00
 GameScreen 	equ #$01
+
+;Palette
 EarthColu	equ #$D2
 SkyColu		equ #$AA
+ScoreBKColu	equ #$A0
+
+;Object Size
 KongolHeight  	equ #24
 GateHeight	equ #30
-GateInitY	equ #32
-KongolInitY	equ #$3A
-KongolInitX     equ #$70
 SkyHeight 	equ #16
 ArenaHeight 	equ #(192 - SkyHeight - ScoreHeight)/2
 ScoreHeight	equ #16
-ScoreBKColu	equ #$A0
+
+;Player States
 Standing	equ #$00
 Ducking		equ #$01
 
+;Initialization
+KongolInitY	equ #$3A
+KongolInitX     equ #$70
+GateInitY	equ #32
+
+; Player Contraints
 XLimitLow	equ #$12
 XLimitHigh	equ #$7C
 YLimitLow	equ #$1A
@@ -37,7 +48,8 @@ Mode		ds 1		;0 = Title Screen
 				;1 = Game
                                 
 ; Game Screen Memory Overlay                
-Temp		ds 1
+Temp			ds 1
+
 KongolColorSelected	ds 2
 KongolGFXSelected 	ds 2
 KongolGFXPtr  	ds 2
@@ -45,20 +57,24 @@ KongolColorPtr	ds 2
 KongolYPos	ds 1		;range: (13,99)
 KongolXPos 	ds 1		;range: (0F,8C)
 KongolState	ds 1
+KongolDraw	ds 1
+KongolPtr	ds 2
+
 Score		ds 1
 ScoreDigitOnes  ds 1
 ScoreDigitTens	ds 1
 ScoreGFX	ds 1
-GameSpeed	ds 1
+
 GateYPos   	ds 1
 GateDraw	ds 1
-KongolDraw	ds 1
-KongolPtr	ds 2
 GatePtr		ds 2
+
+
+
 Colp0	byte
 Colp1	byte
-YP0	byte	; Y counter for player 0
-YP1	byte	; Y counter for player 1
+YP0	byte	; Y counter for p0
+YP1	byte	; Y counter for p1
 
 ;DigitGFX
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -68,31 +84,24 @@ YP1	byte	; Y counter for player 1
         org $f000
 
 Start
-	CLEAN_START
+	CLEAN_START		;Clean Memory
         
         lda #GateInitY
         sta GateYPos
         
-        lda #5
-        ldx #$01
-        jsr SetHorizPos
-        
-        lda #%00000000
+                
+        lda #%00000000		;Clear PF setting
         sta CTRLPF
         
-        lda #KongolInitX
-        sta KongolXPos
-        
+        lda #5			;Initialize p1
+        ldx #$01
+        jsr SetHorizPos
+        lda #KongolInitX	
+        sta KongolXPos  
         lda #KongolInitY
         sta KongolYPos
-        
-        ;lda #51
-        ;sta GateYPos
-        
-        lda #$FA
+        lda #$FA		
         sta COLUP1
-        
-        
         sta Temp
         
         lda #%101		;Set doublewide P0
@@ -122,10 +131,10 @@ DrawTitleScreen
         ldx #192		;X = scanline number
         ldy #$0			;y = vertical pixel height counter
         lda SWCHA		;scan for player 0 input to switch to gameplay logic
-	;rol 			;player 0 joystick button is high bit of INPT4
+	 			;player 0 joystick button is high bit of INPT4
         adc #1
         bcs DrawTitleScreenLoop
-        ;inc Temp
+
         lda #GameScreen		;set gamemode to game screen
         sta Mode		;
         
@@ -164,7 +173,7 @@ TitleLineFinish
         
         sta WSYNC
         
-	dex
+	dex			;End frame and start overscan
         bne DrawTitleScreenLoop
         jsr Overscan
 	jmp NextFrame
@@ -231,16 +240,16 @@ DrawGameScreenStart
         ror
         bcc AwaitingInput
         
-SlidingLeft
+SlidingLeft			;Sliding state logic
 	dec KongolXPos
         jmp InputDone
 
 AwaitingInput
 	lda INPT4        	
         rol 			;player 0 joystick button is high bit of INPT4
-        bcs TestUp
+        bcs TestUp		;Test if button pressed
         
-        lda #<KongolDuckingG
+        lda #<KongolDuckingG	;Button is pressed logic
         sta KongolGFXSelected
         
         lda #>KongolDuckingG
@@ -252,16 +261,14 @@ AwaitingInput
         lda #>KongolDuckingC
         sta KongolColorSelected+1
         
-        
-        
-        lda #Ducking
+        lda #Ducking		
         sta KongolState
         jmp InputDone
         
 
         
 TestUp
-	lda #<KongolStandingG
+	lda #<KongolStandingG		;Moving Upward Logic
         sta KongolGFXSelected
         
         lda #>KongolStandingG
@@ -278,7 +285,7 @@ TestUp
         lda SWCHA		
 
 	and #%00010000		;Test Joystick Right
-        bne TestDown
+        bne TestDown		
         inc KongolYPos
         
         jmp InputDone
@@ -297,26 +304,25 @@ InputDone
         stx PF1
         stx PF2
         
-        lda KongolYPos		;Horizontal Bound Checking
+        lda KongolYPos		;Horizontal Low Bound Checking
         cmp #YLimitLow
         bcs InBoundsLow
 
         lda #YLimitLow
         sta KongolYPos
-        ;jmp InBounds
         
 InBoundsLow
-	cmp #YLimitHigh
+	cmp #YLimitHigh		;Horizontal High Bound Checking
         bcc InBounds
         lda #YLimitHigh
         sta KongolYPos
         
-InBounds
+InBounds			;Update Kongol Position
         sta WSYNC
-        lda KongolXPos		;set 
+        lda KongolXPos	
         jsr SetHorizPos
         
-CollisionPoked
+CollisionPoked			;Hit by doorframe
 	lda KongolXPos
         
         cmp #$06
@@ -325,7 +331,7 @@ CollisionPoked
         rol
         bcc CollisionScored
 	jmp YouDied
-YouDied
+YouDied				;Player loss logic
 	lda #KongolInitX
         sta KongolXPos
         lda #0
@@ -333,7 +339,7 @@ YouDied
         sta KongolState
         jmp CollisionEnd
         
-CollisionScored
+CollisionScored			;Player touched goal logic
 	lda KongolXPos
 	cmp #$02
         bne HitWall
@@ -346,8 +352,8 @@ CollisionScored
         lda #0
         sta KongolState
         
-MoveDoor
-	lda Score
+MoveDoor			;Find new door position after goal
+	lda Score		;Pseudo RNG via Score value
         asl
         adc Score
         asl
@@ -359,7 +365,7 @@ MoveDoor
         
         
         
-HitWall
+HitWall				;Player out of bounds
 	lda KongolXPos
         cmp #$01
         beq YouDied
@@ -370,7 +376,6 @@ CollisionEnd
 Kernel         			;Kernel Start
 	sta CXCLR
         jsr DrawSkyline
-        ;jsr DrawGameScreenOld
         jsr ArenaDraw
         jsr DrawScore
         jsr Overscan
@@ -381,27 +386,20 @@ Kernel         			;Kernel Start
 
 DrawSkyline
 	ldx #6			;X -> iterations of sky 
-        lda #$AA 		;set BK sky to blue
+        lda #$AA 		;Set BK sky to blue
         
         sta COLUBK
 	sta WSYNC
-	lda #EarthColu		;set PF mountains to green
+	lda #EarthColu		;Set PF mountains to green
         sta COLUPF
         lda #0
-        ;sta PF1
-        ;sta PF0
+
 
         sta WSYNC		;2 scanlines of sky without mountains
-        
-        			;Position P1
-        ;sleep 20
-        ;sta RESP1
-        
-        
         sta WSYNC		
         
 DrawSkylineLoop
-        lda PF0Sky,X
+        lda PF0Sky,X		;Color Sky and Mountains
         sta PF0
         
         lda PF1Sky,X
@@ -416,8 +414,9 @@ DrawSkylineLoop
         
         dex
         bne DrawSkylineLoop
-        
-        lda #$0		
+
+DrawSkyLineLoopEnd
+        lda #$0			;Clear Playfield registers
         sta PF0
         sta PF1
         sta PF2
@@ -431,26 +430,26 @@ DrawSkylineLoop
 
 DrawScore
 	sta WSYNC
-        lda #0
+        lda #0			;Clear Playfield
         sta PF1
         sta PF0
         sta PF2
 	lda #ScoreBKColu
-        sta COLUBK
+        sta COLUBK		;Color Background
 	
-        lda #30
+        lda #30			;Color Playfield
         sta COLUPF
         
 	lda Score			
         and #$0F
         sta Temp
         
-        asl
+        asl			;Set ones digit
         asl
         adc Temp
         sta ScoreDigitOnes
         
-        lda Score
+        lda Score		;Set tens digit
         and #$F0
         lsr
         lsr
@@ -461,14 +460,14 @@ DrawScore
         sta ScoreDigitTens
 	
 	
-        ldx #5
+        ldx #5			;5 lines of Score display
         
 DrawScoreLoop
-	ldy ScoreDigitTens
+	ldy ScoreDigitTens	;Set tens graphics
         lda DigitsG,y
         and #$F0
         sta ScoreGFX
-        ldy ScoreDigitOnes
+        ldy ScoreDigitOnes	;Set Ones graphics
         lda #$0
         sta PF1
         
@@ -499,44 +498,30 @@ DrawScoreLoop
         ldy #$0			;Clear right side of PF
         sty PF1
         sta WSYNC
-        ;
-        ;sty PF1
+
         inc ScoreDigitTens
         inc ScoreDigitOnes
         dex
-        sta PF1
+        sta PF1			;Update playfield
         bne DrawScoreLoop
         ldy #$0
         sty PF1
         sta WSYNC
         
-        
-        
-        ;
-        ;stx PF1
-        ;sta WSYNC
-
         dex
         sta WSYNC
-        ; bne DrawScoreLoop
-	
+
         
         rts
-        ;jsr Overscan		;Draw Overscan
-        
-        ;		;Start Next Frame
-        
-        
+
 
 ; 29 lines of overscan
 Overscan
-	;inc Score
-        ;inc Score
         
         lda #$00
         sta COLUBK	;set over/underscan BG to black
         sta COLUPF	;set over/underscan PF to black
-        sta PF0
+        sta PF0		;Clear game palettes
         sta PF1
         sta PF2
         sta GRP0
@@ -564,8 +549,8 @@ ArenaDraw
         
         
 ArenaLoop:                  ;   13 - from bpl ArenaLoop
-    ; continuation of line 2 of the 2LK
-    ; this precalculates data that's used on line 1 of the 2LK
+                            ; continuation of line 2 of the 2LK
+                            ; this precalculates data that's used on line 1 of the 2LK
 
         lda #KongolHeight-1 ; 2 15 - height of the humanoid graphics, subtract 1 due to 
         		    ;starting with 0
