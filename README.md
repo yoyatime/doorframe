@@ -16,7 +16,7 @@ Player 1 Joystick Down
 Duck and Dash:
 Player 1 Button
 
-[Open this project in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=vcs&githubURL=https%3A%2F%2Fgithub.com%2Fyoyatime%2Fdoorframe&file=doorframe.a).
+[Play this game in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=vcs&githubURL=https%3A%2F%2Fgithub.com%2Fyoyatime%2Fdoorframe&file=doorframe.a).
 
 
 Written by Ali Burakaz
